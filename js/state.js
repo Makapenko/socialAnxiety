@@ -24,6 +24,7 @@ function createDefaultState() {
     dailyLogs: {},
     worry: [],
     health: {},
+    assessment: { results: [], repeatAfterDays: 14 },
   };
 }
 function loadState() {
@@ -33,6 +34,9 @@ function loadState() {
       const p = JSON.parse(r);
       const d = createDefaultState();
       for (const k of Object.keys(d)) if (!(k in p)) p[k] = d[k];
+      if (!p.assessment) p.assessment = d.assessment;
+      if (!p.assessment.results) p.assessment.results = [];
+      if (!p.assessment.repeatAfterDays) p.assessment.repeatAfterDays = 14;
       return p;
     }
   } catch (e) {}

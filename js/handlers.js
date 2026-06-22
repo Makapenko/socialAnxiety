@@ -24,6 +24,46 @@ function bindCurrentViewEvents() {
     }),
   );
 
+  /* Оценка состояния */
+  document.querySelectorAll('.assessment-option').forEach((button) =>
+    button.addEventListener('click', function () {
+      document
+        .querySelectorAll(`[data-assessment-scale="${this.dataset.assessmentScale}"]`)
+        .forEach((option) => option.classList.remove('is-active'));
+      this.classList.add('is-active');
+    }),
+  );
+  const startAssessmentButton = byId('start-assessment');
+  if (startAssessmentButton)
+    startAssessmentButton.addEventListener('click', () => {
+      assessmentMode = 'form';
+      renderAssessmentView();
+      bindCurrentViewEvents();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  const cancelAssessmentButton = byId('cancel-assessment');
+  if (cancelAssessmentButton)
+    cancelAssessmentButton.addEventListener('click', () => {
+      assessmentMode = 'overview';
+      renderAssessmentView();
+      bindCurrentViewEvents();
+    });
+  const skipGadButton = byId('skip-gad');
+  if (skipGadButton)
+    skipGadButton.addEventListener('click', () => {
+      gadAssessmentSkipped = true;
+      const questions = byId('gad-questions');
+      if (questions) questions.style.display = 'none';
+      skipGadButton.innerHTML = '<i class="fas fa-check"></i> GAD-7 пропущен';
+      skipGadButton.classList.remove('button-ghost');
+      skipGadButton.classList.add('button-primary');
+    });
+  const saveAssessmentButton = byId('save-assessment');
+  if (saveAssessmentButton)
+    saveAssessmentButton.addEventListener('click', () => {
+      saveAssessmentResult();
+    });
+
   /* Поля ввода — автосохранение */
   document.querySelectorAll('[data-f]').forEach((el) =>
     el.addEventListener('input', function () {
@@ -298,6 +338,66 @@ function handleDailyFieldInput(fieldName, fieldValue) {
   scheduleSave();
 }
 
+function getSelectedAssessmentValue(scaleName) {
+  const button = document.querySelector(`[data-assessment-scale="${scaleName}"].assessment-option.is-active`);
+  return button ? +button.dataset.assessmentValue : null;
+}
+function getSelectedAnxietyValue(scaleName) {
+  const button = document.querySelector(`[data-sn="${scaleName}"] .anxiety-score-button.is-active`);
+  return button ? +button.dataset.sv : null;
+}
+function saveAssessmentResult() {
+  const spinAnswers = SPIN_ITEMS.map((_, index) => getSelectedAssessmentValue(`spin-${index}`));
+  if (spinAnswers.some((value) => value == null)) {
+    showToast('Ответьте на все 17 пунктов социальной тревоги');
+    return;
+  }
+  let gadAnswers = [],
+    gadTotal = null,
+    gadLevel = '',
+    gadSkipped = gadAssessmentSkipped;
+  if (!gadSkipped) {
+    gadAnswers = GAD_ITEMS.map((_, index) => getSelectedAssessmentValue(`gad-${index}`));
+    if (gadAnswers.some((value) => value == null)) {
+      showToast('Пройдите GAD-7 или нажмите «Пропустить GAD-7»');
+      return;
+    }
+    gadTotal = gadAnswers.reduce((sum, value) => sum + value, 0);
+    gadLevel = getGadLevel(gadTotal);
+  }
+  const impairment = {};
+  for (const item of IMPAIRMENT_ITEMS) {
+    const value = getSelectedAnxietyValue(`imp-${item.key}`);
+    if (value == null) {
+      showToast('Оцените, как тревога мешала в 4 областях');
+      return;
+    }
+    impairment[item.key] = value;
+  }
+  const results = getAssessmentResults(),
+    spinTotal = spinAnswers.reduce((sum, value) => sum + value, 0),
+    now = new Date();
+  results.push({
+    id: `${Date.now()}-${Math.round(Math.random() * 100000)}`,
+    createdAt: now.toISOString(),
+    date: getTodayKey(),
+    spinTotal,
+    spinAnswers,
+    spinLevel: getSpinLevel(spinTotal),
+    gadTotal,
+    gadAnswers,
+    gadLevel,
+    gadSkipped,
+    impairment,
+    kind: results.length ? 'repeat' : 'baseline',
+  });
+  assessmentMode = 'overview';
+  scheduleSave();
+  showToast(results.length === 1 ? 'Точка отсчета сохранена' : 'Повторная оценка сохранена');
+  renderAssessmentView();
+  bindCurrentViewEvents();
+}
+
 /* Таймер мыслей — обновление дисплея */
 function updateWorryTimerDisplay() {
   const minutes = Math.floor(worrySecondsRemaining / 60),
@@ -401,18 +501,25 @@ function initializeNavigation() {
     navButton.addEventListener('click', function () {
       const nextTab = this.dataset.tab;
       if (nextTab === activeTab) return;
+      if (!hasAssessmentResults() && nextTab !== 'assessment') {
+        showToast('Сначала сохраните стартовую оценку');
+        syncNavigationActiveState();
+        return;
+      }
       if (worryTimerId) {
         clearInterval(worryTimerId);
         worryTimerId = null;
       }
       if (breathingRunning) stopBreathingExercise();
       activeTab = nextTab;
-      document
-        .querySelectorAll('#bottom-nav button')
-        .forEach((button) => button.classList.remove('is-active'));
-      this.classList.add('is-active');
+      syncNavigationActiveState();
       window.scrollTo({ top: 0, behavior: 'smooth' });
       renderApp();
     }),
   );
+}
+function syncNavigationActiveState() {
+  document
+    .querySelectorAll('#bottom-nav button')
+    .forEach((button) => button.classList.toggle('is-active', button.dataset.tab === activeTab));
 }

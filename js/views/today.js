@@ -6,6 +6,7 @@ function renderTodayView() {
     <div class="date-badge"><i class="fas fa-calendar-day"></i> ${formatDate(d)}</div>
     <h1 class="screen-title">Ежедневная рутина</h1>
     <p class="screen-subtitle">Не превращайте перерывы в «лечение». Вам нужны еда и отдых. Выполняйте по одному маленькому действию.</p>
+    ${renderAssessmentDueReminder()}
     <div class="panel"><div class="panel-title"><i class="fas fa-sun"></i> Перед работой — 5 минут</div>
         <div class="field-label">Общая тревога сейчас</div>${renderAnxietyScale('bw-a', l.bw.a)}
         <div class="field-label" style="margin-top:12px">Одно небольшое социальное действие</div>

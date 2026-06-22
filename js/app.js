@@ -1,6 +1,11 @@
 /* ========== РЕНДЕР ========== */
 function renderApp() {
+  if (!hasAssessmentResults()) activeTab = 'assessment';
+  syncNavigationActiveState();
   switch (activeTab) {
+    case 'assessment':
+      renderAssessmentView();
+      break;
     case 'today':
       renderTodayView();
       break;
@@ -21,6 +26,7 @@ function renderApp() {
 }
 
 /* ========== СТАРТ ========== */
+if (!hasAssessmentResults()) activeTab = 'assessment';
 initializeNavigation();
 renderApp();
 window.addEventListener('beforeunload', () => {

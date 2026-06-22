@@ -22,6 +22,21 @@ function formatDate(s) {
   const w = ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'];
   return `${w[d.getDay()]}, ${d.getDate()} ${m[d.getMonth()]}`;
 }
+function formatDateTime(iso) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${formatDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+function addDaysToDateKey(dateKey, days) {
+  const d = new Date(dateKey + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function daysBetweenDateKeys(fromDateKey, toDateKey) {
+  const from = new Date(fromDateKey + 'T12:00:00');
+  const to = new Date(toDateKey + 'T12:00:00');
+  return Math.floor((to - from) / 86400000);
+}
 function getDailyLog(d) {
   if (!appState.dailyLogs[d])
     appState.dailyLogs[d] = {
