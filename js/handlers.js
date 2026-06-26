@@ -1,5 +1,7 @@
 /* ========== ОБРАБОТЧИКИ ========== */
 function bindCurrentViewEvents() {
+  if (activeTab === 'practices') bindPracticesViewEvents();
+
   /* Шкалы */
   document.querySelectorAll('.anxiety-score-button').forEach((d) =>
     d.addEventListener('click', function () {
@@ -652,6 +654,7 @@ function initializeNavigation() {
         worryTimerId = null;
       }
       if (breathingRunning) stopBreathingExercise();
+      cleanupPracticesView();
       activeTab = nextTab;
       syncNavigationActiveState();
       window.scrollTo({ top: 0, behavior: 'smooth' });

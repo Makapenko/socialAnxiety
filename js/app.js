@@ -18,6 +18,9 @@ function renderApp() {
     case 'thoughts':
       renderThoughtsView();
       break;
+    case 'practices':
+      renderPracticesView();
+      break;
     case 'health':
       renderHealthView();
       break;
@@ -31,5 +34,6 @@ initializeNavigation();
 renderApp();
 window.addEventListener('beforeunload', () => {
   if (breathingRunning) saveBreathingSession();
+  cleanupPracticesView();
   localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
 });

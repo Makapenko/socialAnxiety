@@ -17,6 +17,14 @@ const DEFAULT_ACTIONS = [
   { id: 14, text: 'Предложить кому-нибудь встретиться', anxiety: 9 },
   { id: 15, text: 'Выступить или говорить перед группой', anxiety: 10 },
 ];
+function createDefaultPracticesState() {
+  return {
+    grounding: { step: 0, answers: [], completed: false, history: [] },
+    clouds: { entries: [] },
+    bodyScan: { current: 0, timeLeft: 15, completed: false, history: [] },
+    values: { phase: 'select', selected: [], chosen: {}, completed: false, history: [] },
+  };
+}
 function createDefaultState() {
   return {
     diary: [],
@@ -27,6 +35,7 @@ function createDefaultState() {
     health: {},
     breathingMode: 'calm',
     assessment: { results: [], repeatAfterDays: 7 },
+    practices: createDefaultPracticesState(),
   };
 }
 function loadState() {
@@ -42,6 +51,44 @@ function loadState() {
       if (!Array.isArray(p.actions)) p.actions = d.actions;
       if (!Array.isArray(p.safetyBehaviors)) p.safetyBehaviors = [];
       if (!['calm', 'even'].includes(p.breathingMode)) p.breathingMode = d.breathingMode;
+      if (!p.practices || typeof p.practices !== 'object') p.practices = d.practices;
+      for (const [practiceName, practiceDefaults] of Object.entries(d.practices)) {
+        if (!p.practices[practiceName] || typeof p.practices[practiceName] !== 'object')
+          p.practices[practiceName] = practiceDefaults;
+        else
+          for (const [key, value] of Object.entries(practiceDefaults))
+            if (!(key in p.practices[practiceName]))
+              p.practices[practiceName][key] = JSON.parse(JSON.stringify(value));
+      }
+      if (!Array.isArray(p.practices.grounding.answers)) p.practices.grounding.answers = [];
+      if (!Array.isArray(p.practices.grounding.history)) p.practices.grounding.history = [];
+      p.practices.grounding.step = Math.min(4, Math.max(0, Number(p.practices.grounding.step) || 0));
+      p.practices.grounding.completed = Boolean(p.practices.grounding.completed);
+      if (!Array.isArray(p.practices.clouds.entries)) p.practices.clouds.entries = [];
+      if (!Array.isArray(p.practices.bodyScan.history)) p.practices.bodyScan.history = [];
+      p.practices.bodyScan.current = Math.min(
+        11,
+        Math.max(0, Number(p.practices.bodyScan.current) || 0),
+      );
+      p.practices.bodyScan.timeLeft = Math.min(
+        15,
+        Math.max(1, Number(p.practices.bodyScan.timeLeft) || 15),
+      );
+      p.practices.bodyScan.completed = Boolean(p.practices.bodyScan.completed);
+      if (!Array.isArray(p.practices.values.selected)) p.practices.values.selected = [];
+      p.practices.values.selected = p.practices.values.selected
+        .filter((valueId) =>
+          ['family', 'health', 'growth', 'creative', 'nature', 'help', 'freedom', 'peace'].includes(
+            valueId,
+          ),
+        )
+        .slice(0, 3);
+      if (!p.practices.values.chosen || typeof p.practices.values.chosen !== 'object')
+        p.practices.values.chosen = {};
+      if (!Array.isArray(p.practices.values.history)) p.practices.values.history = [];
+      if (!['select', 'actions'].includes(p.practices.values.phase))
+        p.practices.values.phase = 'select';
+      p.practices.values.completed = Boolean(p.practices.values.completed);
       return p;
     }
   } catch (e) {}
