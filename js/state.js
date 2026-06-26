@@ -50,7 +50,7 @@ function loadState() {
       if (!p.assessment.repeatAfterDays) p.assessment.repeatAfterDays = 7;
       if (!Array.isArray(p.actions)) p.actions = d.actions;
       if (!Array.isArray(p.safetyBehaviors)) p.safetyBehaviors = [];
-      if (!['calm', 'even'].includes(p.breathingMode)) p.breathingMode = d.breathingMode;
+      if (!['calm', 'even', 'square', 'hold478'].includes(p.breathingMode)) p.breathingMode = d.breathingMode;
       if (!p.practices || typeof p.practices !== 'object') p.practices = d.practices;
       for (const [practiceName, practiceDefaults] of Object.entries(d.practices)) {
         if (!p.practices[practiceName] || typeof p.practices[practiceName] !== 'object')

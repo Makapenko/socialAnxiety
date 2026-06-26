@@ -24,6 +24,27 @@ const BREATHING_MODES = {
       { t: 'Выдох', d: 5000 },
     ],
   },
+  square: {
+    name: 'Квадрат',
+    description: 'Вдох 4 · пауза 4 · выдох 4 · пауза 4',
+    animationClass: 'breathing-mode-square',
+    phases: [
+      { t: 'Вдох', d: 4000 },
+      { t: 'Пауза', d: 4000 },
+      { t: 'Выдох', d: 4000 },
+      { t: 'Пауза', d: 4000 },
+    ],
+  },
+  hold478: {
+    name: '4-7-8',
+    description: 'Вдох 4 · пауза 7 · выдох 8',
+    animationClass: 'breathing-mode-478',
+    phases: [
+      { t: 'Вдох', d: 4000 },
+      { t: 'Пауза', d: 7000 },
+      { t: 'Выдох', d: 8000 },
+    ],
+  },
 };
 function getBreathingMode() {
   return BREATHING_MODES[appState.breathingMode] || BREATHING_MODES.calm;
@@ -31,13 +52,21 @@ function getBreathingMode() {
 function getBreathingPhases() {
   return getBreathingMode().phases;
 }
+function renderBreathingCircleContent(phaseText, secondsLeft) {
+  if (secondsLeft == null) return escapeHtml(phaseText);
+  return `
+    <span class="breathing-phase">${escapeHtml(phaseText)}</span>
+    <span class="breathing-phase-count">${secondsLeft}</span>
+    <span class="breathing-phase-unit">сек</span>`;
+}
 function renderHealthView() {
   const d = getTodayKey(),
     h = getHealthLog(d),
     l = getDailyLog(d),
     currentBreathingSeconds = breathingRunning ? getBreathingElapsedSeconds() : 0,
     breathingMode = getBreathingMode(),
-    breathingPhases = getBreathingPhases();
+    breathingPhases = getBreathingPhases(),
+    breathingPhaseState = breathingRunning ? getBreathingPhaseState(currentBreathingSeconds) : null;
   let hh = '';
   for (let i = 6; i >= 0; i--) {
     const dt = new Date();
@@ -63,7 +92,7 @@ function renderHealthView() {
             )
             .join('')}
         </div>
-        <div class="breathing-circle-wrap"><div class="breathing-circle ${breathingMode.animationClass}${breathingRunning ? ' is-breathing-active' : ''}" id="bc">${breathingRunning ? breathingPhases[breathingPhaseIndex].t : 'Старт'}</div></div>
+        <div class="breathing-circle-wrap"><div class="breathing-circle ${breathingMode.animationClass}${breathingRunning ? ' is-breathing-active' : ''}" id="bc">${breathingRunning ? renderBreathingCircleContent(breathingPhases[breathingPhaseState.index].t, breathingPhaseState.secondsLeft) : renderBreathingCircleContent('Старт')}</div></div>
         <div class="breathing-timer${currentBreathingSeconds >= BREATHING_READY_SECONDS ? ' is-ready' : ''}${breathingRunning ? ' is-visible' : ''}" id="b-time">${formatTimer(currentBreathingSeconds)}</div>
         <div style="display:flex;gap:8px;justify-content:center"><button class="button button-primary button-small" id="b-tog"><i class="fas fa-${breathingRunning ? 'stop' : 'play'}"></i> ${breathingRunning ? 'Завершить' : 'Начать'}</button></div>
         <p class="breathing-total">Сегодня дыхание: <span id="b-total">${formatDuration(l.breathingSeconds)}</span></p>

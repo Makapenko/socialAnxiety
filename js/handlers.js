@@ -562,24 +562,29 @@ function updateBreathingTimerDisplay() {
     timerTextElement.classList.add('is-visible');
   }
 }
-function getBreathingPhaseIndex(elapsedSeconds) {
+function getBreathingPhaseState(elapsedSeconds) {
   const breathingPhases = getBreathingPhases(),
     cycleDuration = breathingPhases.reduce((sum, phase) => sum + phase.d, 0) / 1000;
   let cycleSeconds = elapsedSeconds % cycleDuration;
   for (let i = 0; i < breathingPhases.length; i++) {
     const phaseSeconds = breathingPhases[i].d / 1000;
-    if (cycleSeconds < phaseSeconds) return i;
+    if (cycleSeconds < phaseSeconds)
+      return { index: i, secondsLeft: Math.ceil(phaseSeconds - cycleSeconds) };
     cycleSeconds -= phaseSeconds;
   }
-  return 0;
+  return { index: 0, secondsLeft: Math.ceil(breathingPhases[0].d / 1000) };
 }
 function updateBreathingExerciseDisplay() {
   const elapsedSeconds = getBreathingElapsedSeconds(),
-    nextPhaseIndex = getBreathingPhaseIndex(elapsedSeconds),
+    phaseState = getBreathingPhaseState(elapsedSeconds),
     breathingCircle = byId('bc'),
     breathingPhases = getBreathingPhases();
-  breathingPhaseIndex = nextPhaseIndex;
-  if (breathingCircle) breathingCircle.textContent = breathingPhases[breathingPhaseIndex].t;
+  breathingPhaseIndex = phaseState.index;
+  if (breathingCircle)
+    breathingCircle.innerHTML = renderBreathingCircleContent(
+      breathingPhases[breathingPhaseIndex].t,
+      phaseState.secondsLeft,
+    );
   updateBreathingTimerDisplay();
 }
 function saveBreathingSession() {
@@ -605,7 +610,10 @@ function startBreathingExercise() {
   const breathingCircle = byId('bc');
   if (breathingCircle) {
     breathingCircle.classList.add('is-breathing-active');
-    breathingCircle.textContent = breathingPhases[0].t;
+    breathingCircle.innerHTML = renderBreathingCircleContent(
+      breathingPhases[0].t,
+      Math.ceil(breathingPhases[0].d / 1000),
+    );
   }
   document.querySelectorAll('[data-breathing-mode]').forEach((button) => (button.disabled = true));
   updateBreathingExerciseDisplay();
@@ -626,7 +634,7 @@ function stopBreathingExercise() {
   const breathingCircle = byId('bc');
   if (breathingCircle) {
     breathingCircle.classList.remove('is-breathing-active');
-    breathingCircle.textContent = 'Старт';
+    breathingCircle.innerHTML = renderBreathingCircleContent('Старт');
   }
   const timerTextElement = byId('b-time');
   if (timerTextElement) {
