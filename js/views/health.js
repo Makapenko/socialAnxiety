@@ -5,17 +5,39 @@ let breathingRunning = false,
   breathingStartedAt = null,
   breathingSessionDate = null;
 const BREATHING_READY_SECONDS = 120;
-const BREATHING_PHASES = [
-  { t: 'Вдох', d: 4000 },
-  { t: 'Задержка', d: 2000 },
-  { t: 'Выдох', d: 6000 },
-  { t: 'Задержка', d: 2000 },
-];
+const BREATHING_MODES = {
+  calm: {
+    name: 'Спокойное',
+    description: 'Вдох 4 секунды · выдох 6 секунд',
+    animationClass: 'breathing-mode-calm',
+    phases: [
+      { t: 'Вдох', d: 4000 },
+      { t: 'Выдох', d: 6000 },
+    ],
+  },
+  even: {
+    name: 'Ровное',
+    description: 'Вдох 5 секунд · выдох 5 секунд',
+    animationClass: 'breathing-mode-even',
+    phases: [
+      { t: 'Вдох', d: 5000 },
+      { t: 'Выдох', d: 5000 },
+    ],
+  },
+};
+function getBreathingMode() {
+  return BREATHING_MODES[appState.breathingMode] || BREATHING_MODES.calm;
+}
+function getBreathingPhases() {
+  return getBreathingMode().phases;
+}
 function renderHealthView() {
   const d = getTodayKey(),
     h = getHealthLog(d),
     l = getDailyLog(d),
-    currentBreathingSeconds = breathingRunning ? getBreathingElapsedSeconds() : 0;
+    currentBreathingSeconds = breathingRunning ? getBreathingElapsedSeconds() : 0,
+    breathingMode = getBreathingMode(),
+    breathingPhases = getBreathingPhases();
   let hh = '';
   for (let i = 6; i >= 0; i--) {
     const dt = new Date();
@@ -32,12 +54,21 @@ function renderHealthView() {
     <h1 class="screen-title">Снижение тревожности</h1>
     <p class="screen-subtitle">Физическое состояние влияет на тревогу. Эти простые действия имеют накопительный эффект.</p>
     <div class="panel" style="text-align:center"><div class="panel-title" style="justify-content:center"><i class="fas fa-wind"></i> Дыхательное упражнение</div>
-        <p style="font-size:.78rem;color:#8a7e74;margin-bottom:8px">Спокойный вдох, чуть более длинный выдох. 2–3 минуты.</p>
-        <div class="breathing-circle-wrap"><div class="breathing-circle${breathingRunning ? ' is-breathing-active' : ''}" id="bc">${breathingRunning ? BREATHING_PHASES[breathingPhaseIndex].t : 'Старт'}</div></div>
+        <p style="font-size:.78rem;color:#8a7e74;margin-bottom:10px">Дышите мягко, без глубоких и резких вдохов. Для начала достаточно 2 минут.</p>
+        <div class="breathing-modes" aria-label="Режим дыхания">
+          ${Object.entries(BREATHING_MODES)
+            .map(
+              ([modeId, mode]) =>
+                `<button type="button" class="breathing-mode-button${appState.breathingMode === modeId ? ' is-active' : ''}" data-breathing-mode="${modeId}"${breathingRunning ? ' disabled' : ''}><strong>${mode.name}</strong><span>${mode.description}</span></button>`,
+            )
+            .join('')}
+        </div>
+        <div class="breathing-circle-wrap"><div class="breathing-circle ${breathingMode.animationClass}${breathingRunning ? ' is-breathing-active' : ''}" id="bc">${breathingRunning ? breathingPhases[breathingPhaseIndex].t : 'Старт'}</div></div>
         <div class="breathing-timer${currentBreathingSeconds >= BREATHING_READY_SECONDS ? ' is-ready' : ''}${breathingRunning ? ' is-visible' : ''}" id="b-time">${formatTimer(currentBreathingSeconds)}</div>
         <div style="display:flex;gap:8px;justify-content:center"><button class="button button-primary button-small" id="b-tog"><i class="fas fa-${breathingRunning ? 'stop' : 'play'}"></i> ${breathingRunning ? 'Завершить' : 'Начать'}</button></div>
         <p class="breathing-total">Сегодня дыхание: <span id="b-total">${formatDuration(l.breathingSeconds)}</span></p>
-        <p style="font-size:.7rem;color:#5a524b;margin-top:10px">Не используйте как обязательный ритуал перед каждым разговором</p>
+        <p class="breathing-note">Если кружится голова или не хватает воздуха — вернитесь к обычному дыханию.</p>
+        <p class="breathing-note">Не используйте упражнение как обязательный ритуал перед разговором.</p>
     </div>
     <div class="panel"><div class="panel-title"><i class="fas fa-mug-saucer"></i> Кофеин сегодня</div>
         <p style="font-size:.78rem;color:#8a7e74;margin-bottom:12px">Кофе, крепкий чай, кола, энергетики усиливают сердцебиение и дрожь. Снижайте постепенно.</p>

@@ -137,9 +137,14 @@ function bindCurrentViewEvents() {
         anxiety: selectedAnxietyButton ? +selectedAnxietyButton.dataset.sv : 5,
       });
       scheduleSave();
-      showToast('Добавлено');
+      showToast('Ситуация добавлена');
       renderActionsView();
       bindCurrentViewEvents();
+    });
+  const newActionInput = byId('na-t');
+  if (newActionInput)
+    newActionInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') addActionButton.click();
     });
 
   /* Удалить действие */
@@ -148,23 +153,98 @@ function bindCurrentViewEvents() {
       e.stopPropagation();
       appState.actions = appState.actions.filter((a) => a.id !== +this.dataset.da);
       scheduleSave();
+      showToast('Ситуация удалена');
       renderActionsView();
       bindCurrentViewEvents();
     }),
   );
 
+  /* Переключение разделов карты тревоги */
+  document.querySelectorAll('[data-actions-section]').forEach((button) =>
+    button.addEventListener('click', function () {
+      actionsViewSection = this.dataset.actionsSection;
+      renderActionsView();
+      bindCurrentViewEvents();
+    }),
+  );
+
+  /* Защитные поведения */
+  const addSafetyBehaviorButton = byId('add-sb'),
+    newSafetyBehaviorInput = byId('nsb-t');
+  if (addSafetyBehaviorButton)
+    addSafetyBehaviorButton.addEventListener('click', () => {
+      addSafetyBehavior(newSafetyBehaviorInput.value);
+    });
+  if (newSafetyBehaviorInput)
+    newSafetyBehaviorInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') addSafetyBehaviorButton.click();
+    });
+  document.querySelectorAll('[data-safety-example]').forEach((button) =>
+    button.addEventListener('click', function () {
+      addSafetyBehavior(this.dataset.safetyExample);
+    }),
+  );
+  document.querySelectorAll('[data-dsb]').forEach((button) =>
+    button.addEventListener('click', function () {
+      appState.safetyBehaviors = appState.safetyBehaviors.filter(
+        (behavior) => behavior.id !== +this.dataset.dsb,
+      );
+      scheduleSave();
+      showToast('Защитное поведение удалено');
+      renderActionsView();
+      bindCurrentViewEvents();
+    }),
+  );
+
+  /* Порядок ситуаций: кнопки и drag-and-drop */
+  document.querySelectorAll('[data-move-action]').forEach((button) =>
+    button.addEventListener('click', function (event) {
+      event.stopPropagation();
+      moveActionByOffset(+this.dataset.moveAction, +this.dataset.direction);
+    }),
+  );
+  document.querySelectorAll('.action-item[draggable="true"]').forEach((item) => {
+    item.addEventListener('dragstart', function (event) {
+      draggedActionId = +this.dataset.aid;
+      this.classList.add('is-dragging');
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', String(draggedActionId));
+    });
+    item.addEventListener('dragover', function (event) {
+      event.preventDefault();
+      if (+this.dataset.aid === draggedActionId) return;
+      clearActionDropIndicators();
+      const rect = this.getBoundingClientRect(),
+        placeAfter = event.clientY > rect.top + rect.height / 2;
+      this.classList.add(placeAfter ? 'drop-after' : 'drop-before');
+      event.dataTransfer.dropEffect = 'move';
+    });
+    item.addEventListener('drop', function (event) {
+      event.preventDefault();
+      const targetId = +this.dataset.aid;
+      if (draggedActionId == null || draggedActionId === targetId) return;
+      const rect = this.getBoundingClientRect(),
+        placeAfter = event.clientY > rect.top + rect.height / 2;
+      reorderAction(draggedActionId, targetId, placeAfter);
+    });
+    item.addEventListener('dragend', function () {
+      draggedActionId = null;
+      clearActionDropIndicators();
+      this.classList.remove('is-dragging');
+    });
+  });
+
   /* Клик по действию для редактирования */
   document.querySelectorAll('[data-aid]').forEach((el) =>
     el.addEventListener('click', function (e) {
-      if (e.target.closest('.delete-icon-button')) return;
+      if (e.target.closest('button')) return;
       const id = +this.dataset.aid,
         a = appState.actions.find((x) => x.id === id);
       if (!a) return;
       document.querySelectorAll('.action-item').forEach((x) => {
-        x.style.outline = 'none';
+        x.classList.remove('is-selected');
       });
-      this.style.outline = '2px solid rgba(143,168,122,.5)';
-      this.style.outlineOffset = '1px';
+      this.classList.add('is-selected');
       selectedActionId = id;
       const info = byId('ea-info');
       if (info) {
@@ -269,6 +349,15 @@ function bindCurrentViewEvents() {
     breathingToggleButton.addEventListener('click', () => {
       breathingRunning ? stopBreathingExercise() : startBreathingExercise();
     });
+  document.querySelectorAll('[data-breathing-mode]').forEach((modeButton) =>
+    modeButton.addEventListener('click', function () {
+      if (breathingRunning || !BREATHING_MODES[this.dataset.breathingMode]) return;
+      appState.breathingMode = this.dataset.breathingMode;
+      scheduleSave();
+      renderHealthView();
+      bindCurrentViewEvents();
+    }),
+  );
 
   /* Счётчики здоровья — обновляем без полного перерендера */
   document.querySelectorAll('[data-hc]').forEach((b) =>
@@ -293,6 +382,57 @@ function bindCurrentViewEvents() {
   );
 }
 
+function normalizeListText(value) {
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('ru');
+}
+function addSafetyBehavior(value) {
+  const text = value.trim().replace(/\s+/g, ' ');
+  if (!text) {
+    showToast('Введите защитное поведение');
+    return;
+  }
+  const normalizedText = normalizeListText(text),
+    alreadyExists = appState.safetyBehaviors.some(
+      (behavior) => normalizeListText(behavior.text) === normalizedText,
+    );
+  if (alreadyExists) {
+    showToast('Такое поведение уже есть в списке');
+    return;
+  }
+  appState.safetyBehaviors.push({ id: Date.now(), text, createdAt: new Date().toISOString() });
+  scheduleSave();
+  showToast('Защитное поведение добавлено');
+  renderActionsView();
+  bindCurrentViewEvents();
+}
+function moveActionByOffset(actionId, offset) {
+  const fromIndex = appState.actions.findIndex((action) => action.id === actionId),
+    toIndex = fromIndex + offset;
+  if (fromIndex < 0 || toIndex < 0 || toIndex >= appState.actions.length) return;
+  const [movedAction] = appState.actions.splice(fromIndex, 1);
+  appState.actions.splice(toIndex, 0, movedAction);
+  scheduleSave();
+  renderActionsView();
+  bindCurrentViewEvents();
+}
+function reorderAction(actionId, targetId, placeAfter) {
+  const fromIndex = appState.actions.findIndex((action) => action.id === actionId);
+  if (fromIndex < 0) return;
+  const [movedAction] = appState.actions.splice(fromIndex, 1);
+  let targetIndex = appState.actions.findIndex((action) => action.id === targetId);
+  if (targetIndex < 0) return;
+  if (placeAfter) targetIndex++;
+  appState.actions.splice(targetIndex, 0, movedAction);
+  scheduleSave();
+  renderActionsView();
+  bindCurrentViewEvents();
+}
+function clearActionDropIndicators() {
+  document.querySelectorAll('.action-item').forEach((item) => {
+    item.classList.remove('drop-before', 'drop-after', 'is-dragging');
+  });
+}
+
 /* Логика шкал */
 function handleAnxietyScaleChange(scaleName, scaleValue) {
   const l = getDailyLog(getTodayKey());
@@ -307,12 +447,8 @@ function handleAnxietyScaleChange(scaleName, scaleValue) {
         info.innerHTML = `<span style="color:#e8e0d6">«${escapeHtml(a.text)}»</span> — сейчас: <span style="color:#8fa87a;font-weight:700">${scaleValue}/10</span>`;
       const item = document.querySelector(`[data-aid="${a.id}"] .action-anxiety`);
       if (item) item.textContent = scaleValue + '/10';
-      document.querySelectorAll('.action-item').forEach((el) => {
-        const id = +el.dataset.aid,
-          act = appState.actions.find((x) => x.id === id);
-        if (act)
-          el.classList.toggle('is-recommended', act.anxiety >= 3 && act.anxiety <= 4);
-      });
+      const progress = byId('situation-progress');
+      if (progress) progress.outerHTML = renderSituationProgress();
     }
   }
   scheduleSave();
@@ -425,10 +561,11 @@ function updateBreathingTimerDisplay() {
   }
 }
 function getBreathingPhaseIndex(elapsedSeconds) {
-  const cycleDuration = BREATHING_PHASES.reduce((sum, phase) => sum + phase.d, 0) / 1000;
+  const breathingPhases = getBreathingPhases(),
+    cycleDuration = breathingPhases.reduce((sum, phase) => sum + phase.d, 0) / 1000;
   let cycleSeconds = elapsedSeconds % cycleDuration;
-  for (let i = 0; i < BREATHING_PHASES.length; i++) {
-    const phaseSeconds = BREATHING_PHASES[i].d / 1000;
+  for (let i = 0; i < breathingPhases.length; i++) {
+    const phaseSeconds = breathingPhases[i].d / 1000;
     if (cycleSeconds < phaseSeconds) return i;
     cycleSeconds -= phaseSeconds;
   }
@@ -437,9 +574,10 @@ function getBreathingPhaseIndex(elapsedSeconds) {
 function updateBreathingExerciseDisplay() {
   const elapsedSeconds = getBreathingElapsedSeconds(),
     nextPhaseIndex = getBreathingPhaseIndex(elapsedSeconds),
-    breathingCircle = byId('bc');
+    breathingCircle = byId('bc'),
+    breathingPhases = getBreathingPhases();
   breathingPhaseIndex = nextPhaseIndex;
-  if (breathingCircle) breathingCircle.textContent = BREATHING_PHASES[breathingPhaseIndex].t;
+  if (breathingCircle) breathingCircle.textContent = breathingPhases[breathingPhaseIndex].t;
   updateBreathingTimerDisplay();
 }
 function saveBreathingSession() {
@@ -457,6 +595,7 @@ function saveBreathingSession() {
 }
 function startBreathingExercise() {
   if (breathingRunning) return;
+  const breathingPhases = getBreathingPhases();
   breathingRunning = true;
   breathingPhaseIndex = 0;
   breathingStartedAt = Date.now();
@@ -464,8 +603,9 @@ function startBreathingExercise() {
   const breathingCircle = byId('bc');
   if (breathingCircle) {
     breathingCircle.classList.add('is-breathing-active');
-    breathingCircle.textContent = BREATHING_PHASES[0].t;
+    breathingCircle.textContent = breathingPhases[0].t;
   }
+  document.querySelectorAll('[data-breathing-mode]').forEach((button) => (button.disabled = true));
   updateBreathingExerciseDisplay();
   breathingIntervalId = setInterval(() => {
     updateBreathingExerciseDisplay();
@@ -493,6 +633,7 @@ function stopBreathingExercise() {
   }
   const breathingToggleButton = byId('b-tog');
   if (breathingToggleButton) breathingToggleButton.innerHTML = '<i class="fas fa-play"></i> Начать';
+  document.querySelectorAll('[data-breathing-mode]').forEach((button) => (button.disabled = false));
 }
 
 /* ========== НАВИГАЦИЯ ========== */

@@ -21,10 +21,12 @@ function createDefaultState() {
   return {
     diary: [],
     actions: JSON.parse(JSON.stringify(DEFAULT_ACTIONS)),
+    safetyBehaviors: [],
     dailyLogs: {},
     worry: [],
     health: {},
-    assessment: { results: [], repeatAfterDays: 14 },
+    breathingMode: 'calm',
+    assessment: { results: [], repeatAfterDays: 7 },
   };
 }
 function loadState() {
@@ -36,7 +38,10 @@ function loadState() {
       for (const k of Object.keys(d)) if (!(k in p)) p[k] = d[k];
       if (!p.assessment) p.assessment = d.assessment;
       if (!p.assessment.results) p.assessment.results = [];
-      if (!p.assessment.repeatAfterDays) p.assessment.repeatAfterDays = 14;
+      if (!p.assessment.repeatAfterDays) p.assessment.repeatAfterDays = 7;
+      if (!Array.isArray(p.actions)) p.actions = d.actions;
+      if (!Array.isArray(p.safetyBehaviors)) p.safetyBehaviors = [];
+      if (!['calm', 'even'].includes(p.breathingMode)) p.breathingMode = d.breathingMode;
       return p;
     }
   } catch (e) {}
@@ -44,7 +49,7 @@ function loadState() {
 }
 
 let appState = loadState();
-let activeTab = 'today';
+let activeTab = 'assessment';
 let saveTimeout;
 function scheduleSave() {
   clearTimeout(saveTimeout);

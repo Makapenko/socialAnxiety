@@ -36,6 +36,8 @@ const IMPAIRMENT_ITEMS = [
   { key: 'avoidance', label: 'Избегание' },
 ];
 
+const ASSESSMENT_REPEAT_AFTER_DAYS = 7;
+
 let assessmentMode = 'overview';
 let gadAssessmentSkipped = false;
 
@@ -43,9 +45,9 @@ function hasAssessmentResults() {
   return !!(appState.assessment && appState.assessment.results && appState.assessment.results.length);
 }
 function getAssessmentResults() {
-  if (!appState.assessment) appState.assessment = { results: [], repeatAfterDays: 14 };
+  if (!appState.assessment) appState.assessment = { results: [], repeatAfterDays: ASSESSMENT_REPEAT_AFTER_DAYS };
   if (!appState.assessment.results) appState.assessment.results = [];
-  if (!appState.assessment.repeatAfterDays) appState.assessment.repeatAfterDays = 14;
+  if (!appState.assessment.repeatAfterDays) appState.assessment.repeatAfterDays = ASSESSMENT_REPEAT_AFTER_DAYS;
   return appState.assessment.results;
 }
 function getLastAssessmentResult() {
@@ -55,7 +57,7 @@ function getLastAssessmentResult() {
 function getAssessmentRepeatInfo() {
   const last = getLastAssessmentResult();
   if (!last) return null;
-  const repeatAfterDays = appState.assessment.repeatAfterDays || 14,
+  const repeatAfterDays = appState.assessment.repeatAfterDays || ASSESSMENT_REPEAT_AFTER_DAYS,
     dueDate = addDaysToDateKey(last.date, repeatAfterDays),
     daysSince = daysBetweenDateKeys(last.date, getTodayKey()),
     daysLeft = repeatAfterDays - daysSince;
@@ -110,7 +112,7 @@ function renderAssessmentNotice() {
 function renderAssessmentDueReminder() {
   const info = getAssessmentRepeatInfo();
   if (!info || !info.isDue) return '';
-  return `<div class="assessment-alert is-due"><i class="fas fa-triangle-exclamation"></i><div><strong>Пора повторить оценку</strong><br>Прошло 14 дней или больше с последнего теста. Откройте вкладку «Оценка».</div></div>`;
+  return `<div class="assessment-alert is-due"><i class="fas fa-triangle-exclamation"></i><div><strong>Пора повторить оценку</strong><br>Прошло ${ASSESSMENT_REPEAT_AFTER_DAYS} дней или больше с последнего теста. Откройте вкладку «Оценка».</div></div>`;
 }
 function renderAssessmentResultCard(result, index) {
   const isBaseline = index === 0,
